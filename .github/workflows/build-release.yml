@@ -131,8 +131,8 @@ jobs:
         run: podman build --format docker --platform linux/arm/v7 --manifest site24x7_exporter -f Containerfile target/armv7-unknown-linux-gnueabihf/release
 
       - name: podman manifest push latest
-        run: podman manifest push site24x7_exporter docker.io/svenstaro/site24x7_exporter:latest
+        run: podman manifest push site24x7_exporter docker.io/mateusgsan/site24x7_exporter:latest
 
       - name: podman manifest push tag version
-        run: podman manifest push site24x7_exporter docker.io/svenstaro/site24x7_exporter:${{ needs.binaries.outputs.version }}
+        run: podman manifest push site24x7_exporter docker.io/mateusgsan/site24x7_exporter:${{ needs.binaries.outputs.version }}
         if: startsWith(github.ref_name, 'v')
