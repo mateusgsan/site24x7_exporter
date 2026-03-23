@@ -2,13 +2,22 @@
 use std::sync::Arc;
 
 use hyper::{header, Body, Method, Request, Response, StatusCode};
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use prometheus::{Encoder, TextEncoder};
 use tokio::sync::RwLock;
 
 use crate::api_communication::fetch_current_status;
 use crate::metrics::update_metrics_from_current_status;
 use crate::{api_communication::get_access_token, geodata, site24x7_types, CLIENT};
+
+/// Builds a generic 500 response without leaking internal error details to the caller.
+/// The full error context is always logged at ERROR level on the server side.
+fn internal_error_response(public_message: &'static str) -> Response<Body> {
+    Response::builder()
+        .status(StatusCode::INTERNAL_SERVER_ERROR)
+        .body(Body::from(public_message))
+        .unwrap()
+}
 
 pub async fn hyper_service(
     req: Request<Body>,
@@ -63,7 +72,7 @@ pub async fn hyper_service(
         // If we also get an auth error the second time, probably something is wrong with the
         // refresh token and we'll just give up.
         Err(site24x7_types::CurrentStatusError::ApiAuthError(_)) => {
-            info!(
+            warn!(
                 "Couldn't get status update due to an authentication error. \
                 Probably the access token has timed out. Trying to get a new one."
             );
@@ -73,12 +82,11 @@ pub async fn hyper_service(
             *access_token_write = match access_token_res {
                 Ok(access_token) => access_token,
                 Err(e) => {
-                    error!("Failed to renew access token");
-                    error!("{:?}", e);
-                    return Ok(Response::builder()
-                        .status(StatusCode::INTERNAL_SERVER_ERROR)
-                        .body(Body::from(e.to_string()))
-                        .unwrap());
+                    // Log the full error detail server-side only; never expose it to the caller.
+                    error!("Failed to renew access token: {:?}", e);
+                    return Ok(internal_error_response(
+                        "Internal Server Error - Token Refresh Failed",
+                    ));
                 }
             };
 
@@ -91,22 +99,23 @@ pub async fn hyper_service(
             {
                 Ok(current_status_data) => current_status_data,
                 Err(e) => {
-                    error!("An unexpected error occurred after renewing access token.");
-                    error!("{:?}", e);
-                    return Ok(Response::builder()
-                        .status(StatusCode::INTERNAL_SERVER_ERROR)
-                        .body(Body::from(e.to_string()))
-                        .unwrap());
+                    // Log the full error detail server-side only; never expose it to the caller.
+                    error!(
+                        "Unexpected error fetching current status after token renewal: {:?}",
+                        e
+                    );
+                    return Ok(internal_error_response(
+                        "Internal Server Error - Failed to Fetch Monitor Status",
+                    ));
                 }
             }
         }
         Err(e) => {
-            error!("An unexpected error occurred.");
-            error!("{:?}", e);
-            return Ok(Response::builder()
-                .status(StatusCode::INTERNAL_SERVER_ERROR)
-                .body(Body::from(e.to_string()))
-                .unwrap());
+            // Log the full error detail server-side only; never expose it to the caller.
+            error!("Unexpected error fetching current status: {:?}", e);
+            return Ok(internal_error_response(
+                "Internal Server Error - Failed to Fetch Monitor Status",
+            ));
         }
     };
 
