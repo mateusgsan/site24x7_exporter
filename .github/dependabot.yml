@@ -8,3 +8,11 @@ updates:
       all-dependencies:
         patterns:
           - "*"
+    ignore:
+      # hyper 1.x rewrote the high-level server API (Server, make_service_fn,
+      # Body) which are used directly in main.rs and web_service.rs.
+      # A dedicated migration to hyper-util or axum is required before
+      # upgrading. Track progress at:
+      # https://github.com/mateusgsan/site24x7_exporter/issues
+      - dependency-name: "hyper"
+        versions: [">=1.0.0"]
