@@ -1,8 +1,8 @@
 # site24x7_exporter
 
-[![GitHub Actions Workflow](https://github.com/mateusgsan/site24x7_exporter/actions/workflows/ci.yml/badge.svg)](https://github.com/svenstaro/site24x7_exporter/actions)
-[![Docker Hub](https://img.shields.io/docker/pulls/mateusgsan/site24x7_exporter)](https://cloud.docker.com/repository/docker/svenstaro/site24x7_exporter/)
-[![codecov](https://codecov.io/gh/mateusgsan/site24x7_exporter/branch/master/graph/badge.svg)](https://codecov.io/gh/svenstaro/site24x7_exporter)
+[![GitHub Actions Workflow](https://github.com/mateusgsan/site24x7_exporter/actions/workflows/ci.yml/badge.svg)](https://github.com/mateusgsan/site24x7_exporter/actions)
+[![Docker Hub](https://img.shields.io/docker/pulls/mateusgsan/site24x7_exporter)](https://cloud.docker.com/repository/docker/mateusgsan/site24x7_exporter/)
+[![codecov](https://codecov.io/gh/mateusgsan/site24x7_exporter/branch/master/graph/badge.svg)](https://codecov.io/gh/mateusgsan/site24x7_exporter)
 [![license](http://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/mateusgsan/site24x7_exporter/blob/master/LICENSE)
 [![Lines of Code](https://tokei.rs/b1/github/mateusgsan/site24x7_exporter)](https://github.com/mateusgsan/site24x7_exporter)
 
@@ -125,7 +125,7 @@ This is especially convenient for development purposes or local Docker usage as 
 
 ### Run via docker
 
-    docker run --env-file ./.env -p 9803:9803 svenstaro/site24x7_exporter --site24x7-endpoint site24x7.eu
+    docker run --env-file ./.env -p 9803:9803 mateusgsan/site24x7_exporter --site24x7-endpoint site24x7.eu
 
 ### Testing
 
