@@ -27,6 +27,9 @@ jobs:
       - name: Upload coverage report to codecov.io
         uses: codecov/codecov-action@v4
         with:
-          fail_ci_if_error: true
+          # fail_ci_if_error is set to false so the build does not break
+          # when CODECOV_TOKEN is not configured (e.g. in forks).
+          # Set it to true and add the secret to enable strict enforcement.
+          fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
         if: matrix.os == 'ubuntu-latest'
