@@ -32,10 +32,10 @@ fn set_metrics_for_monitors(monitors: &[site24x7_types::MonitorMaybe], monitor_g
                 location.clone().status as i64
             );
             let up_gauge = MONITOR_UP_GAUGE.with_label_values(&[
-                &monitor_type,
-                &monitor.name,
+                monitor_type.as_str(),
+                monitor.name.as_str(),
                 monitor_group,
-                &location.location_name,
+                location.location_name.as_str(),
             ]);
             up_gauge.set(location.clone().status as i64);
 
@@ -73,10 +73,10 @@ fn set_metrics_for_monitors(monitors: &[site24x7_types::MonitorMaybe], monitor_g
                 attribute_value,
             );
             let latency_gauge = MONITOR_LATENCY_SECONDS_GAUGE.with_label_values(&[
-                &monitor_type,
-                &monitor.name,
+                monitor_type.as_str(),
+                monitor.name.as_str(),
                 monitor_group,
-                &location.location_name,
+                location.location_name.as_str(),
             ]);
             latency_gauge.set(attribute_value);
         }
@@ -122,37 +122,37 @@ fn cleanup_metrics_for_monitors(
             let current_monitor_group = metric
                 .get_label()
                 .iter()
-                .find(|l| l.get_name() == "monitor_group")
+                .find(|l| l.name() == "monitor_group")
                 .unwrap()
-                .get_value();
+                .value();
             if current_monitor_group != monitor_group {
                 continue;
             }
             let monitor_type = metric
                 .get_label()
                 .iter()
-                .find(|l| l.get_name() == "monitor_type")
+                .find(|l| l.name() == "monitor_type")
                 .unwrap()
-                .get_value();
+                .value();
             let monitor_name = metric
                 .get_label()
                 .iter()
-                .find(|l| l.get_name() == "monitor_name")
+                .find(|l| l.name() == "monitor_name")
                 .unwrap()
-                .get_value();
+                .value();
             let location_name = metric
                 .get_label()
                 .iter()
-                .find(|l| l.get_name() == "location")
+                .find(|l| l.name() == "location")
                 .unwrap()
-                .get_value();
+                .value();
             if !has_monitor_with_label_values(monitors, monitor_type, monitor_name, location_name) {
                 let mut labels = HashMap::new();
                 labels.insert("monitor_type", monitor_type);
                 labels.insert("monitor_name", monitor_name);
                 labels.insert("monitor_group", monitor_group);
                 labels.insert("location", location_name);
-                if metric_family.get_name() == "site24x7_monitor_up" {
+                if metric_family.name() == "site24x7_monitor_up" {
                     info!("Cleaning up now-missing metric site24x7_monitor_up{{monitor_type=\"{}\",monitor_name=\"{}\",monitor_group=\"{}\",location=\"{}\"}}",
                         monitor_type,
                         monitor_name,
@@ -160,7 +160,7 @@ fn cleanup_metrics_for_monitors(
                         location_name,
                     );
                     MONITOR_UP_GAUGE.remove(&labels).unwrap();
-                } else if metric_family.get_name() == "site24x7_monitor_latency_seconds" {
+                } else if metric_family.name() == "site24x7_monitor_latency_seconds" {
                     info!("Cleaning up now-missing metric site24x7_monitor_latency_seconds{{monitor_type=\"{}\",monitor_name=\"{}\",monitor_group=\"{}\",location=\"{}\"}}",
                         monitor_type,
                         monitor_name,
@@ -224,12 +224,12 @@ mod tests {
     ) -> bool {
         if let Some(metric_families) = metric_families
             .iter()
-            .find(|mf| mf.get_name() == metric_name)
+            .find(|mf| mf.name() == metric_name)
         {
             metric_families.get_metric().iter().any(|m| {
                 m.get_label()
                     .iter()
-                    .any(|l| l.get_name() == label_name && l.get_value() == label_value)
+                    .any(|l| l.name() == label_name && l.value() == label_value)
             })
         } else {
             false
