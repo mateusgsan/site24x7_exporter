@@ -222,10 +222,7 @@ mod tests {
         label_name: &str,
         label_value: &str,
     ) -> bool {
-        if let Some(metric_families) = metric_families
-            .iter()
-            .find(|mf| mf.name() == metric_name)
-        {
+        if let Some(metric_families) = metric_families.iter().find(|mf| mf.name() == metric_name) {
             metric_families.get_metric().iter().any(|m| {
                 m.get_label()
                     .iter()
