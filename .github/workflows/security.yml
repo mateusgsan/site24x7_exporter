@@ -35,29 +35,3 @@ jobs:
       - name: Run Cargo Deny (License & Advisory Check)
         run: cargo deny check advisories bans licenses sources
 
-  sbom-generation:
-    name: Generate SBOM
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        
-      - name: Install cargo-sbom
-        uses: taiki-e/install-action@cargo-sbom
-        
-      - name: Generate SBOM (SPDX)
-        run: cargo sbom > sbom.spdx.json
-        
-      - name: Generate SBOM (CycloneDX)
-        run: cargo sbom --output-format cyclonedx-json > sbom.cyclonedx.json
-        
-      - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom-files
-          path: |
-            sbom.spdx.json
-            sbom.cyclonedx.json
-          retention-days: 30
