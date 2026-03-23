@@ -48,7 +48,7 @@ async fn main() -> Result<()> {
         simplelog::ColorChoice::Auto,
     )?;
 
-    dotenv::dotenv().ok();
+    dotenvy::dotenv().ok();
 
     info!("{} {}", crate_name!(), crate_version!());
 
