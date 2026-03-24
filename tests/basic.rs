@@ -1,6 +1,6 @@
 use assert_cmd::prelude::*;
 use clap::{crate_name, crate_version};
-use predicates::prelude::*;
+use predicates::str::contains;
 use std::process::Command;
 
 /// Error type used by tests
