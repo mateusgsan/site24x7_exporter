@@ -9,7 +9,7 @@
 # Any RUN instruction would attempt to execute a foreign-arch binary on the
 # host kernel, causing "Exec format error". All required packages
 # (ca-certificates) are already present in debian:stable-slim since Debian 12.
-FROM docker.io/debian:stable-slim
+FROM docker.io/debian:bookwarm-slim
 
 # Copy the pre-compiled binary produced by the Rust cross-compilation step.
 COPY --chmod=755 site24x7_exporter /app/
