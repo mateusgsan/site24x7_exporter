@@ -212,9 +212,7 @@ fn test_zoho_auth_failure_exits_with_error() {
     let mut child = spawn_exporter(&zoho_server.url(), &api_server.url(), port);
 
     // Com auth inválida o exporter encerra rapidamente sem abrir a porta
-    let status = child
-        .wait()
-        .expect("falha ao aguardar processo terminar");
+    let status = child.wait().expect("falha ao aguardar processo terminar");
 
     assert!(
         !status.success(),
@@ -340,8 +338,7 @@ fn test_geolocation_endpoint_responds() {
     let child = spawn_exporter(&zoho_server.url(), &api_server.url(), port);
     wait_for_port(port);
 
-    let resp =
-        reqwest::blocking::get(format!("http://127.0.0.1:{}/geolocation", port)).unwrap();
+    let resp = reqwest::blocking::get(format!("http://127.0.0.1:{}/geolocation", port)).unwrap();
     assert!(resp.status().is_success(), "/geolocation deve retornar 200");
     assert!(
         !resp.text().unwrap().is_empty(),
@@ -478,8 +475,7 @@ fn test_unknown_path_returns_default_page() {
     wait_for_port(port);
 
     // O exporter serve uma página padrão (200) para rotas desconhecidas
-    let resp =
-        reqwest::blocking::get(format!("http://127.0.0.1:{}/nao-existe", port)).unwrap();
+    let resp = reqwest::blocking::get(format!("http://127.0.0.1:{}/nao-existe", port)).unwrap();
     assert!(
         resp.status().is_success(),
         "rota desconhecida deve retornar página padrão com 200"
