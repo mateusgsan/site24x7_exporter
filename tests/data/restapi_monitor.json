@@ -1,0 +1,24 @@
+{
+  "code": 0,
+  "data": {
+    "monitors": [
+      {
+        "attributeName": "RESPONSETIME",
+        "last_polled_time": "2021-01-06T18:53:07+0000",
+        "locations": [
+          {
+            "attribute_value": 120,
+            "last_polled_time": "2021-01-06T18:53:06+0000",
+            "location_name": "London - UK",
+            "status": 1
+          }
+        ],
+        "monitor_id": "03",
+        "monitor_type": "RESTAPI",
+        "name": "my-rest-api",
+        "status": 1
+      }
+    ]
+  },
+  "message": "success"
+}

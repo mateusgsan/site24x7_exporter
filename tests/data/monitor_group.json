@@ -1,0 +1,31 @@
+{
+  "code": 0,
+  "data": {
+    "monitors": [],
+    "monitor_groups": [
+      {
+        "group_id": "grp01",
+        "group_name": "production",
+        "monitors": [
+          {
+            "attributeName": "RESPONSETIME",
+            "last_polled_time": "2021-01-06T18:53:07+0000",
+            "locations": [
+              {
+                "attribute_value": 350,
+                "last_polled_time": "2021-01-06T18:53:06+0000",
+                "location_name": "London - UK",
+                "status": 1
+              }
+            ],
+            "monitor_id": "g01",
+            "monitor_type": "URL",
+            "name": "prod-api",
+            "status": 1
+          }
+        ]
+      }
+    ]
+  },
+  "message": "success"
+}

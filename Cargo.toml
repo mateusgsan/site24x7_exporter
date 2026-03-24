@@ -40,3 +40,5 @@ chrono = { version = "0.4", features = ["serde"] }
 pretty_assertions = "1.2"
 assert_cmd = "2.2"
 port_check = "0.3"
+serial_test = "3.4.0"
+predicates = "3.1.4"

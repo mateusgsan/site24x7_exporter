@@ -202,6 +202,7 @@ mod tests {
     use anyhow::Result;
     use pretty_assertions::assert_eq;
     use prometheus::{Encoder, TextEncoder};
+    use serial_test::serial;
 
     use crate::parsing::parse_current_status;
 
@@ -234,6 +235,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     /// If we get an entirely empty body, we don't want to see any metrics getting created.
     fn no_metrics_are_created_if_empty_body() -> Result<()> {
         clear_state();
@@ -244,6 +246,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     /// A simple case where we expect to find two locations in the output.
     fn simple_two_locations() -> Result<()> {
         clear_state();
@@ -277,6 +280,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     /// A removed location should disappear.
     fn removed_location_should_disappear() -> Result<()> {
         clear_state();
@@ -309,6 +313,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     /// A removed monitor should disappear.
     fn removed_monitors_should_disappear() -> Result<()> {
         clear_state();
@@ -341,6 +346,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     /// An update that contains a monitor with a location that doesn't have `attribute_value`
     /// set should not overwrite an existing metric with the same labels.
     ///
@@ -378,6 +384,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     /// Monitors that are down should report +Inf as their latency value.
     ///
     /// See https://prometheus.io/docs/practices/instrumentation/#avoid-missing-metrics
@@ -400,6 +407,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     /// Monitors that are down will overwrite previous values with +Inf.
     fn down_monitor_updates_previous_value_to_inf() -> Result<()> {
         clear_state();
@@ -434,6 +442,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     /// Check that there are no changes between two identical status updates.
     fn identical_update_no_changes() -> Result<()> {
         clear_state();

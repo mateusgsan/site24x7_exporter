@@ -1,0 +1,25 @@
+{
+  "code": 0,
+  "data": {
+    "monitors": [
+      {
+        "attributeName": "RESPONSETIME",
+        "last_polled_time": "2021-01-06T18:53:07+0000",
+        "locations": [
+          {
+            "attribute_value": 200,
+            "last_polled_time": "2021-01-06T18:53:06+0000",
+            "location_name": "London - UK",
+            "status": 1
+          }
+        ],
+        "monitor_id": "10",
+        "monitor_type": "URL",
+        "name": "tagged-monitor",
+        "status": 1,
+        "tags": ["env:production", "team:platform", "novalue"]
+      }
+    ]
+  },
+  "message": "success"
+}

@@ -1,0 +1,25 @@
+{
+  "code": 0,
+  "data": {
+    "monitors": [
+      {
+        "attributeName": "RESPONSETIME",
+        "locations": [
+          { "location_name": "London - UK", "status": 0 },
+          { "location_name": "Paris - FR", "status": 1 },
+          { "location_name": "Berlin - DE", "status": 2 },
+          { "location_name": "Madrid - ES", "status": 3 },
+          { "location_name": "Rome - IT", "status": 5 },
+          { "location_name": "Vienna - AT", "status": 7 },
+          { "location_name": "Warsaw - PL", "status": 9 },
+          { "location_name": "Lisbon - PT", "status": 10 }
+        ],
+        "monitor_id": "status-test",
+        "monitor_type": "URL",
+        "name": "status-test-monitor",
+        "status": 1
+      }
+    ]
+  },
+  "message": "success"
+}

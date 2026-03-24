@@ -372,4 +372,157 @@ mod tests {
         assert_eq!(data.monitors, vec![expected_monitor]);
         Ok(())
     }
+
+    #[test]
+    /// An OAuth token error should return ApiAuthError.
+    fn auth_error_returns_api_auth_error() {
+        let s = include_str!("../tests/data/auth_error.json");
+        let result = parse_current_status(s);
+        assert!(matches!(
+            result,
+            Err(types::CurrentStatusError::ApiAuthError(_))
+        ));
+        if let Err(types::CurrentStatusError::ApiAuthError(msg)) = result {
+            assert!(msg.contains("OAuth Access Token is invalid or has expired."));
+        }
+    }
+
+    #[test]
+    /// An unknown API error should return ApiUnknownError.
+    fn unknown_api_error_returns_api_unknown_error() {
+        let s = include_str!("../tests/data/unknown_api_error.json");
+        let result = parse_current_status(s);
+        assert!(matches!(
+            result,
+            Err(types::CurrentStatusError::ApiUnknownError(_))
+        ));
+        if let Err(types::CurrentStatusError::ApiUnknownError(msg)) = result {
+            assert!(msg.contains("unknown API error"));
+        }
+    }
+
+    #[test]
+    /// Completely invalid JSON should return a ParseError.
+    fn invalid_json_returns_parse_error() {
+        let result = parse_current_status("this is not json at all");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    /// A RESTAPI monitor type should be parsed into MonitorMaybe::RESTAPI.
+    fn restapi_monitor_type_is_parsed() -> Result<()> {
+        let s = include_str!("../tests/data/restapi_monitor.json");
+        let data = parse_current_status(s)?;
+        assert_eq!(data.monitors.len(), 1);
+        assert!(matches!(data.monitors[0], types::MonitorMaybe::RESTAPI(_)));
+        Ok(())
+    }
+
+    #[test]
+    /// An unknown monitor type should be parsed into MonitorMaybe::Unknown.
+    fn unknown_monitor_type_is_parsed_as_unknown() -> Result<()> {
+        let s = include_str!("../tests/data/unknown_monitor_type.json");
+        let data = parse_current_status(s)?;
+        assert_eq!(data.monitors.len(), 1);
+        assert!(matches!(data.monitors[0], types::MonitorMaybe::Unknown));
+        Ok(())
+    }
+
+    #[test]
+    /// Tags with key:value format should be deserialized correctly.
+    fn monitor_tags_are_deserialized() -> Result<()> {
+        let s = include_str!("../tests/data/monitor_with_tags.json");
+        let data = parse_current_status(s)?;
+        assert_eq!(data.monitors.len(), 1);
+        if let types::MonitorMaybe::URL(monitor) = &data.monitors[0] {
+            assert_eq!(monitor.tags.len(), 3);
+            assert_eq!(monitor.tags[0].key, "env");
+            assert_eq!(monitor.tags[0].value, "production");
+            assert_eq!(monitor.tags[1].key, "team");
+            assert_eq!(monitor.tags[1].value, "platform");
+            // Tag without colon: key = "novalue", value = ""
+            assert_eq!(monitor.tags[2].key, "novalue");
+            assert_eq!(monitor.tags[2].value, "");
+        } else {
+            panic!("Expected MonitorMaybe::URL");
+        }
+        Ok(())
+    }
+
+    #[test]
+    /// Monitors inside monitor groups should be parsed correctly.
+    fn monitor_group_is_parsed() -> Result<()> {
+        let s = include_str!("../tests/data/monitor_group.json");
+        let data = parse_current_status(s)?;
+        assert!(data.monitors.is_empty());
+        assert_eq!(data.monitor_groups.len(), 1);
+        let group = &data.monitor_groups[0];
+        assert_eq!(group.group_id, "grp01");
+        assert_eq!(group.group_name, "production");
+        assert_eq!(group.monitors.len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    /// All Status enum variants should be deserialized from their numeric representation.
+    fn all_status_variants_are_deserialized() -> Result<()> {
+        let s = include_str!("../tests/data/all_statuses.json");
+        let data = parse_current_status(s)?;
+        assert_eq!(data.monitors.len(), 1);
+        if let types::MonitorMaybe::URL(monitor) = &data.monitors[0] {
+            let statuses: Vec<&types::Status> =
+                monitor.locations.iter().map(|l| &l.status).collect();
+            assert!(statuses.contains(&&types::Status::Down));
+            assert!(statuses.contains(&&types::Status::Up));
+            assert!(statuses.contains(&&types::Status::Trouble));
+            assert!(statuses.contains(&&types::Status::Critical));
+            assert!(statuses.contains(&&types::Status::Suspended));
+            assert!(statuses.contains(&&types::Status::Maintenance));
+            assert!(statuses.contains(&&types::Status::Discovery));
+            assert!(statuses.contains(&&types::Status::ConfigurationError));
+        } else {
+            panic!("Expected MonitorMaybe::URL");
+        }
+        Ok(())
+    }
+
+    #[test]
+    /// Status::default() should return ConfigurationError.
+    fn status_default_is_configuration_error() {
+        assert_eq!(types::Status::default(), types::Status::ConfigurationError);
+    }
+
+    #[test]
+    /// MonitorMaybe::Display should return the monitor_type string.
+    fn monitor_maybe_display() {
+        use std::fmt::Write;
+        let mut s = String::new();
+        let monitor = types::MonitorMaybe::URL(types::Monitor {
+            name: "x".to_string(),
+            unit: None,
+            attribute_key: None,
+            status: types::Status::Up,
+            locations: vec![],
+            attribute_name: "RESPONSETIME".to_string(),
+            attribute_value: None,
+            monitor_id: "1".to_string(),
+            tags: vec![],
+            last_polled_time: None,
+        });
+        write!(s, "{monitor}").unwrap();
+        assert_eq!(s, "URL");
+    }
+
+    #[test]
+    /// CurrentStatusError variants should display their messages correctly.
+    fn current_status_error_display() {
+        let auth_err = types::CurrentStatusError::ApiAuthError("token expired".to_string());
+        assert!(auth_err.to_string().contains("token expired"));
+
+        let unknown_err = types::CurrentStatusError::ApiUnknownError("something broke".to_string());
+        assert!(unknown_err.to_string().contains("something broke"));
+
+        let parse_err = types::CurrentStatusError::ParseError("bad json".to_string());
+        assert!(parse_err.to_string().contains("bad json"));
+    }
 }

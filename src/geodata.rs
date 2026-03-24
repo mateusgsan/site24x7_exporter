@@ -218,3 +218,97 @@ pub fn get_geolocation_info() -> Vec<GeoLocationInfo> {
         },
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    /// The geolocation list should contain exactly 35 entries.
+    fn geolocation_list_has_expected_count() {
+        let data = get_geolocation_info();
+        assert_eq!(data.len(), 34);
+    }
+
+    #[test]
+    /// All keys should be unique (no duplicate probe names).
+    fn geolocation_keys_are_unique() {
+        let data = get_geolocation_info();
+        let mut keys: Vec<&str> = data.iter().map(|g| g.key).collect();
+        keys.sort_unstable();
+        keys.dedup();
+        assert_eq!(keys.len(), data.len(), "Duplicate keys found in geodata");
+    }
+
+    #[test]
+    /// All names should be unique.
+    fn geolocation_names_are_unique() {
+        let data = get_geolocation_info();
+        let mut names: Vec<&str> = data.iter().map(|g| g.name).collect();
+        names.sort_unstable();
+        names.dedup();
+        assert_eq!(names.len(), data.len(), "Duplicate names found in geodata");
+    }
+
+    #[test]
+    /// Latitude values should be in the valid range [-90, 90].
+    fn latitude_values_are_valid() {
+        let data = get_geolocation_info();
+        for entry in &data {
+            assert!(
+                entry.latitude >= -90.0 && entry.latitude <= 90.0,
+                "Invalid latitude {} for {}",
+                entry.latitude,
+                entry.key
+            );
+        }
+    }
+
+    #[test]
+    /// Longitude values should be in the valid range [-180, 180].
+    fn longitude_values_are_valid() {
+        let data = get_geolocation_info();
+        for entry in &data {
+            assert!(
+                entry.longitude >= -180.0 && entry.longitude <= 180.0,
+                "Invalid longitude {} for {}",
+                entry.longitude,
+                entry.key
+            );
+        }
+    }
+
+    #[test]
+    /// Known probe locations should be present in the list.
+    fn known_locations_are_present() {
+        let data = get_geolocation_info();
+        let keys: Vec<&str> = data.iter().map(|g| g.key).collect();
+        assert!(keys.contains(&"Amsterdam - NL"), "Amsterdam - NL not found");
+        assert!(keys.contains(&"London - UK"), "London - UK not found");
+        assert!(keys.contains(&"New York - US"), "New York - US not found");
+        assert!(keys.contains(&"Tokyo - JP"), "Tokyo - JP not found");
+        assert!(keys.contains(&"Sydney - AUS"), "Sydney - AUS not found");
+    }
+
+    #[test]
+    /// GeoLocationInfo should serialize to JSON with all expected fields.
+    fn geolocation_info_serializes_to_json() {
+        let data = get_geolocation_info();
+        let first = &data[0];
+        let json = serde_json::to_string(first).unwrap();
+        assert!(json.contains("\"key\""));
+        assert!(json.contains("\"latitude\""));
+        assert!(json.contains("\"longitude\""));
+        assert!(json.contains("\"name\""));
+    }
+
+    #[test]
+    /// The full list should serialize to a JSON array without errors.
+    fn full_geolocation_list_serializes() {
+        let data = get_geolocation_info();
+        let json = serde_json::to_string(&data).unwrap();
+        assert!(json.starts_with('['));
+        assert!(json.ends_with(']'));
+        assert!(json.contains("Amsterdam"));
+    }
+}
