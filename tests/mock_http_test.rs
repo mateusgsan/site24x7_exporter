@@ -1,7 +1,7 @@
 //! Testes de integração com mock de servidor HTTP.
 //!
 //! Execute com:
-//!   cargo test -- --test-threads 1 --nocapture
+//!   cargo test --test mock_http_test -- --test-threads 1
 
 use assert_cmd::prelude::*;
 use mockito::{Matcher, Server};
@@ -23,57 +23,82 @@ fn zoho_token_response() -> String {
     .to_string()
 }
 
+/// Resposta correta da API /current_status do Site24x7.
+///
+/// O campo `data` é um **objeto** com `monitors` (array) e `monitor_groups` (array),
+/// não um array direto. Cada monitor precisa dos campos obrigatórios:
+/// `monitor_type`, `name`, `monitor_id`, `status`, `attributeName`, `locations`.
 fn current_status_response() -> String {
     serde_json::json!({
         "code": 0,
-        "data": [
-            {
-                "monitor_id":       "111000000001",
-                "display_name":     "My Website",
-                "type":             "URL",
-                "status":           1,
-                "unit":             "ms",
-                "response_time":    120,
-                "last_polled_time": "2024-01-15T10:00:00+0000"
-            },
-            {
-                "monitor_id":       "111000000002",
-                "display_name":     "REST API Health",
-                "type":             "RESTAPI",
-                "status":           0,
-                "unit":             "ms",
-                "response_time":    0,
-                "last_polled_time": "2024-01-15T10:01:00+0000"
-            },
-            {
-                "monitor_id":       "111000000003",
-                "display_name":     "Browser Test",
-                "type":             "REALBROWSER",
-                "status":           2,
-                "unit":             "ms",
-                "response_time":    8500,
-                "last_polled_time": "2024-01-15T10:02:00+0000"
-            }
-        ]
-    })
-    .to_string()
-}
-
-fn monitor_groups_response() -> String {
-    serde_json::json!({
-        "code": 0,
-        "data": [
-            {
-                "group_id":     "222000000001",
-                "display_name": "Production",
-                "monitors":     ["111000000001", "111000000002"]
-            },
-            {
-                "group_id":     "222000000002",
-                "display_name": "Staging",
-                "monitors":     ["111000000003"]
-            }
-        ]
+        "message": "success",
+        "data": {
+            "monitors": [
+                {
+                    "monitor_id":       "111000000001",
+                    "name":             "My Website",
+                    "monitor_type":     "URL",
+                    "status":           1,
+                    "attributeName":    "RESPONSETIME",
+                    "attribute_value":  120,
+                    "last_polled_time": "2024-01-15T10:00:00+0000",
+                    "locations": [
+                        {
+                            "location_name":    "Amsterdam - NL",
+                            "status":           1,
+                            "attribute_value":  120,
+                            "last_polled_time": "2024-01-15T10:00:00+0000"
+                        }
+                    ]
+                },
+                {
+                    "monitor_id":       "111000000002",
+                    "name":             "REST API Health",
+                    "monitor_type":     "RESTAPI",
+                    "status":           0,
+                    "attributeName":    "RESPONSETIME",
+                    "attribute_value":  0,
+                    "last_polled_time": "2024-01-15T10:01:00+0000",
+                    "locations": [
+                        {
+                            "location_name":    "London - UK",
+                            "status":           0,
+                            "attribute_value":  0,
+                            "last_polled_time": "2024-01-15T10:01:00+0000"
+                        }
+                    ]
+                },
+                {
+                    "monitor_id":       "111000000003",
+                    "name":             "Browser Test",
+                    "monitor_type":     "REALBROWSER",
+                    "status":           2,
+                    "attributeName":    "RESPONSETIME",
+                    "attribute_value":  8500,
+                    "last_polled_time": "2024-01-15T10:02:00+0000",
+                    "locations": [
+                        {
+                            "location_name":    "New York - US",
+                            "status":           2,
+                            "attribute_value":  8500,
+                            "last_polled_time": "2024-01-15T10:02:00+0000"
+                        }
+                    ]
+                }
+            ],
+            "monitor_groups": [
+                {
+                    "group_id":   "222000000001",
+                    "group_name": "Production",
+                    "monitors":   []
+                },
+                {
+                    "group_id":   "222000000002",
+                    "group_name": "Staging",
+                    "monitors":   []
+                }
+            ]
+        }
     })
     .to_string()
 }
@@ -138,13 +163,6 @@ fn test_metrics_happy_path() {
         .with_body(current_status_response())
         .create();
 
-    let _groups_mock = api_server
-        .mock("GET", "/monitor_groups")
-        .with_status(200)
-        .with_header("Content-Type", "application/json")
-        .with_body(monitor_groups_response())
-        .create();
-
     let port = free_port();
     let child = spawn_exporter(&zoho_server.url(), &api_server.url(), port);
     wait_for_port(port);
@@ -157,24 +175,21 @@ fn test_metrics_happy_path() {
     kill(child);
 
     assert!(
-        body.contains("site24x7_monitor_status"),
-        "faltou site24x7_monitor_status"
+        body.contains("site24x7_monitor_up"),
+        "faltou site24x7_monitor_up; body={}",
+        &body[..body.len().min(500)]
     );
     assert!(
-        body.contains("site24x7_monitor_response_time_ms"),
-        "faltou site24x7_monitor_response_time_ms"
+        body.contains("site24x7_monitor_latency_seconds"),
+        "faltou site24x7_monitor_latency_seconds"
     );
     assert!(
-        body.contains(r#"display_name="My Website""#),
+        body.contains(r#"monitor_name="My Website""#),
         "faltou label 'My Website'"
     );
     assert!(
-        body.contains(r#"display_name="REST API Health""#),
+        body.contains(r#"monitor_name="REST API Health""#),
         "faltou label 'REST API Health'"
-    );
-    assert!(
-        body.contains("Production") || body.contains("Staging"),
-        "faltaram labels de grupos de monitores"
     );
 }
 
@@ -245,13 +260,6 @@ fn test_site24x7_api_server_error_does_not_panic() {
         .with_body("Internal Server Error")
         .create();
 
-    let _groups_mock = api_server
-        .mock("GET", "/monitor_groups")
-        .with_status(200)
-        .with_header("Content-Type", "application/json")
-        .with_body(monitor_groups_response())
-        .create();
-
     let port = free_port();
     let child = spawn_exporter(&zoho_server.url(), &api_server.url(), port);
     wait_for_port(port);
@@ -284,13 +292,6 @@ fn test_malformed_json_does_not_panic_exporter() {
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(r#"{"code":0,"data":[{INVALID JSON}]}"#)
-        .create();
-
-    let _groups_mock = api_server
-        .mock("GET", "/monitor_groups")
-        .with_status(200)
-        .with_header("Content-Type", "application/json")
-        .with_body(monitor_groups_response())
         .create();
 
     let port = free_port();
@@ -327,13 +328,6 @@ fn test_geolocation_endpoint_responds() {
         .with_body(current_status_response())
         .create();
 
-    let _groups_mock = api_server
-        .mock("GET", "/monitor_groups")
-        .with_status(200)
-        .with_header("Content-Type", "application/json")
-        .with_body(monitor_groups_response())
-        .create();
-
     let port = free_port();
     let child = spawn_exporter(&zoho_server.url(), &api_server.url(), port);
     wait_for_port(port);
@@ -365,20 +359,13 @@ fn test_bearer_token_is_sent_to_api() {
         .with_body(zoho_token_response())
         .create();
 
-    // Exige o header authorization exato (lowercase — HTTP/1.1 headers são case-insensitive)
+    // Exige o header authorization exato
     let status_mock = api_server
         .mock("GET", "/current_status")
         .match_header("authorization", "Zoho-oauthtoken fake-access-token-abc123")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(current_status_response())
-        .create();
-
-    let _groups_mock = api_server
-        .mock("GET", "/monitor_groups")
-        .with_status(200)
-        .with_header("Content-Type", "application/json")
-        .with_body(monitor_groups_response())
         .create();
 
     let port = free_port();
@@ -415,13 +402,6 @@ fn test_monitor_trouble_status_is_exported() {
         .with_body(current_status_response())
         .create();
 
-    let _groups_mock = api_server
-        .mock("GET", "/monitor_groups")
-        .with_status(200)
-        .with_header("Content-Type", "application/json")
-        .with_body(monitor_groups_response())
-        .create();
-
     let port = free_port();
     let child = spawn_exporter(&zoho_server.url(), &api_server.url(), port);
     wait_for_port(port);
@@ -434,7 +414,7 @@ fn test_monitor_trouble_status_is_exported() {
     kill(child);
 
     assert!(
-        body.contains(r#"display_name="Browser Test""#),
+        body.contains(r#"monitor_name="Browser Test""#),
         "monitor com status TROUBLE deve aparecer nas métricas"
     );
 }
@@ -461,13 +441,6 @@ fn test_unknown_path_returns_default_page() {
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(current_status_response())
-        .create();
-
-    let _groups_mock = api_server
-        .mock("GET", "/monitor_groups")
-        .with_status(200)
-        .with_header("Content-Type", "application/json")
-        .with_body(monitor_groups_response())
         .create();
 
     let port = free_port();
