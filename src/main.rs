@@ -140,3 +140,19 @@ async fn main() -> Result<()> {
 
     server.await.context("Server error")
 }
+
+fn zoho_token_url(endpoint: &Site24x7Endpoint) -> String {
+    // Permite override via env var em testes
+    if let Ok(base) = std::env::var("ZOHO_BASE_URL_OVERRIDE") {
+        return format!("{}/oauth/v2/token", base.trim_end_matches('/'));
+    }
+    format!("https://accounts.zoho.{}/oauth/v2/token", endpoint.zoho_domain())
+}
+
+fn site24x7_api_base(endpoint: &Site24x7Endpoint) -> String {
+    if let Ok(base) = std::env::var("SITE24X7_API_BASE_OVERRIDE") {
+        return base.trim_end_matches('/').to_string();
+    }
+    format!("https://www.zohoapis.{}/site24x7/v2", endpoint.zoho_domain())
+}
+
