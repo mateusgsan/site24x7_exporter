@@ -85,10 +85,10 @@ fn monitor_groups_response() -> String {
 fn spawn_exporter(zoho_url: &str, api_url: &str, listen_port: u16) -> std::process::Child {
     Command::cargo_bin("site24x7_exporter")
         .unwrap()
-        .env("ZOHO_CLIENT_ID",             "test-client-id")
-        .env("ZOHO_CLIENT_SECRET",         "test-client-secret")
-        .env("ZOHO_REFRESH_TOKEN",         "test-refresh-token")
-        .env("ZOHO_BASE_URL_OVERRIDE",     zoho_url)
+        .env("ZOHO_CLIENT_ID", "test-client-id")
+        .env("ZOHO_CLIENT_SECRET", "test-client-secret")
+        .env("ZOHO_REFRESH_TOKEN", "test-refresh-token")
+        .env("ZOHO_BASE_URL_OVERRIDE", zoho_url)
         .env("SITE24X7_API_BASE_OVERRIDE", api_url)
         .arg(format!("--web.listen-address=127.0.0.1:{}", listen_port))
         .spawn()
@@ -122,21 +122,24 @@ fn kill(mut child: std::process::Child) {
 #[serial]
 fn test_metrics_happy_path() {
     let mut zoho_server = Server::new();
-    let mut api_server  = Server::new();
+    let mut api_server = Server::new();
 
-    let _token_mock = zoho_server.mock("POST", "/oauth/v2/token")
+    let _token_mock = zoho_server
+        .mock("POST", "/oauth/v2/token")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(zoho_token_response())
         .create();
 
-    let _status_mock = api_server.mock("GET", "/monitors/status")
+    let _status_mock = api_server
+        .mock("GET", "/monitors/status")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(monitors_status_response())
         .create();
 
-    let _groups_mock = api_server.mock("GET", "/monitor_groups")
+    let _groups_mock = api_server
+        .mock("GET", "/monitor_groups")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(monitor_groups_response())
@@ -153,10 +156,22 @@ fn test_metrics_happy_path() {
 
     kill(child);
 
-    assert!(body.contains("site24x7_monitor_status"),           "faltou site24x7_monitor_status");
-    assert!(body.contains("site24x7_monitor_response_time_ms"), "faltou site24x7_monitor_response_time_ms");
-    assert!(body.contains(r#"display_name="My Website""#),      "faltou label 'My Website'");
-    assert!(body.contains(r#"display_name="REST API Health""#), "faltou label 'REST API Health'");
+    assert!(
+        body.contains("site24x7_monitor_status"),
+        "faltou site24x7_monitor_status"
+    );
+    assert!(
+        body.contains("site24x7_monitor_response_time_ms"),
+        "faltou site24x7_monitor_response_time_ms"
+    );
+    assert!(
+        body.contains(r#"display_name="My Website""#),
+        "faltou label 'My Website'"
+    );
+    assert!(
+        body.contains(r#"display_name="REST API Health""#),
+        "faltou label 'REST API Health'"
+    );
     assert!(
         body.contains("Production") || body.contains("Staging"),
         "faltaram labels de grupos de monitores"
@@ -171,19 +186,24 @@ fn test_metrics_happy_path() {
 #[serial]
 fn test_zoho_auth_failure_returns_empty_metrics() {
     let mut zoho_server = Server::new();
-    let mut api_server  = Server::new();
+    let mut api_server = Server::new();
 
-    let _token_mock = zoho_server.mock("POST", "/oauth/v2/token")
+    let _token_mock = zoho_server
+        .mock("POST", "/oauth/v2/token")
         .with_status(401)
         .with_header("Content-Type", "application/json")
-        .with_body(serde_json::json!({
-            "error": "invalid_client",
-            "error_description": "Client ID does not exist"
-        }).to_string())
+        .with_body(
+            serde_json::json!({
+                "error": "invalid_client",
+                "error_description": "Client ID does not exist"
+            })
+            .to_string(),
+        )
         .create();
 
     // API não deve ser chamada — espera 0 hits
-    let api_not_called = api_server.mock("GET", Matcher::Any)
+    let api_not_called = api_server
+        .mock("GET", Matcher::Any)
         .with_status(500)
         .with_body("não deveria ser chamado")
         .expect(0)
@@ -194,7 +214,10 @@ fn test_zoho_auth_failure_returns_empty_metrics() {
     wait_for_port(port);
 
     let resp = reqwest::blocking::get(format!("http://127.0.0.1:{}/metrics", port)).unwrap();
-    assert!(resp.status().is_success(), "/metrics deve responder mesmo com falha de auth");
+    assert!(
+        resp.status().is_success(),
+        "/metrics deve responder mesmo com falha de auth"
+    );
 
     let body = resp.text().unwrap();
     assert!(
@@ -214,20 +237,23 @@ fn test_zoho_auth_failure_returns_empty_metrics() {
 #[serial]
 fn test_site24x7_api_server_error_does_not_crash_exporter() {
     let mut zoho_server = Server::new();
-    let mut api_server  = Server::new();
+    let mut api_server = Server::new();
 
-    let _token_mock = zoho_server.mock("POST", "/oauth/v2/token")
+    let _token_mock = zoho_server
+        .mock("POST", "/oauth/v2/token")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(zoho_token_response())
         .create();
 
-    let _status_mock = api_server.mock("GET", "/monitors/status")
+    let _status_mock = api_server
+        .mock("GET", "/monitors/status")
         .with_status(500)
         .with_body("Internal Server Error")
         .create();
 
-    let _groups_mock = api_server.mock("GET", "/monitor_groups")
+    let _groups_mock = api_server
+        .mock("GET", "/monitor_groups")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(monitor_groups_response())
@@ -255,21 +281,24 @@ fn test_site24x7_api_server_error_does_not_crash_exporter() {
 #[serial]
 fn test_malformed_json_does_not_crash_exporter() {
     let mut zoho_server = Server::new();
-    let mut api_server  = Server::new();
+    let mut api_server = Server::new();
 
-    let _token_mock = zoho_server.mock("POST", "/oauth/v2/token")
+    let _token_mock = zoho_server
+        .mock("POST", "/oauth/v2/token")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(zoho_token_response())
         .create();
 
-    let _status_mock = api_server.mock("GET", "/monitors/status")
+    let _status_mock = api_server
+        .mock("GET", "/monitors/status")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(r#"{"code":0,"data":[{INVALID JSON}]}"#)
         .create();
 
-    let _groups_mock = api_server.mock("GET", "/monitor_groups")
+    let _groups_mock = api_server
+        .mock("GET", "/monitor_groups")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(monitor_groups_response())
@@ -297,21 +326,24 @@ fn test_malformed_json_does_not_crash_exporter() {
 #[serial]
 fn test_geolocation_endpoint_responds() {
     let mut zoho_server = Server::new();
-    let mut api_server  = Server::new();
+    let mut api_server = Server::new();
 
-    let _token_mock = zoho_server.mock("POST", "/oauth/v2/token")
+    let _token_mock = zoho_server
+        .mock("POST", "/oauth/v2/token")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(zoho_token_response())
         .create();
 
-    let _status_mock = api_server.mock("GET", "/monitors/status")
+    let _status_mock = api_server
+        .mock("GET", "/monitors/status")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(monitors_status_response())
         .create();
 
-    let _groups_mock = api_server.mock("GET", "/monitor_groups")
+    let _groups_mock = api_server
+        .mock("GET", "/monitor_groups")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(monitor_groups_response())
@@ -323,7 +355,10 @@ fn test_geolocation_endpoint_responds() {
 
     let resp = reqwest::blocking::get(format!("http://127.0.0.1:{}/geolocation", port)).unwrap();
     assert!(resp.status().is_success(), "/geolocation deve retornar 200");
-    assert!(!resp.text().unwrap().is_empty(), "/geolocation não deve ser vazio");
+    assert!(
+        !resp.text().unwrap().is_empty(),
+        "/geolocation não deve ser vazio"
+    );
 
     kill(child);
 }
@@ -336,23 +371,26 @@ fn test_geolocation_endpoint_responds() {
 #[serial]
 fn test_bearer_token_is_sent_to_api() {
     let mut zoho_server = Server::new();
-    let mut api_server  = Server::new();
+    let mut api_server = Server::new();
 
-    let _token_mock = zoho_server.mock("POST", "/oauth/v2/token")
+    let _token_mock = zoho_server
+        .mock("POST", "/oauth/v2/token")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(zoho_token_response())
         .create();
 
     // Exige o header Authorization exato
-    let status_mock = api_server.mock("GET", "/monitors/status")
+    let status_mock = api_server
+        .mock("GET", "/monitors/status")
         .match_header("Authorization", "Zoho-oauthtoken fake-access-token-abc123")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(monitors_status_response())
         .create();
 
-    let _groups_mock = api_server.mock("GET", "/monitor_groups")
+    let _groups_mock = api_server
+        .mock("GET", "/monitor_groups")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(monitor_groups_response())
@@ -376,21 +414,24 @@ fn test_bearer_token_is_sent_to_api() {
 #[serial]
 fn test_monitor_trouble_status_is_exported() {
     let mut zoho_server = Server::new();
-    let mut api_server  = Server::new();
+    let mut api_server = Server::new();
 
-    let _token_mock = zoho_server.mock("POST", "/oauth/v2/token")
+    let _token_mock = zoho_server
+        .mock("POST", "/oauth/v2/token")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(zoho_token_response())
         .create();
 
-    let _status_mock = api_server.mock("GET", "/monitors/status")
+    let _status_mock = api_server
+        .mock("GET", "/monitors/status")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(monitors_status_response())
         .create();
 
-    let _groups_mock = api_server.mock("GET", "/monitor_groups")
+    let _groups_mock = api_server
+        .mock("GET", "/monitor_groups")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(monitor_groups_response())
@@ -421,21 +462,24 @@ fn test_monitor_trouble_status_is_exported() {
 #[serial]
 fn test_unknown_path_returns_404() {
     let mut zoho_server = Server::new();
-    let mut api_server  = Server::new();
+    let mut api_server = Server::new();
 
-    let _token_mock = zoho_server.mock("POST", "/oauth/v2/token")
+    let _token_mock = zoho_server
+        .mock("POST", "/oauth/v2/token")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(zoho_token_response())
         .create();
 
-    let _status_mock = api_server.mock("GET", "/monitors/status")
+    let _status_mock = api_server
+        .mock("GET", "/monitors/status")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(monitors_status_response())
         .create();
 
-    let _groups_mock = api_server.mock("GET", "/monitor_groups")
+    let _groups_mock = api_server
+        .mock("GET", "/monitor_groups")
         .with_status(200)
         .with_header("Content-Type", "application/json")
         .with_body(monitor_groups_response())
