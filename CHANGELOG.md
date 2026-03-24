@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 <!-- next-header -->
 
-## [Unreleased] - ReleaseDate
+## [1.2] - 2026-03-24
+- upgrade dependencies to remove vulnerabilities
+- new tests to amplify coverage
 
 ## [1.1.2] - 2025-06-04
 - Use proper content-type header for prometheus [#373](https://github.com/svenstaro/site24x7_exporter/pull/373) (thanks @fiksn)
