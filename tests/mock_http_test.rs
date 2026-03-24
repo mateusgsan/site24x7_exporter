@@ -5,7 +5,6 @@
 
 use assert_cmd::prelude::*;
 use httpmock::prelude::*;
-use predicates::prelude::*;
 use serial_test::serial;
 use std::process::Command;
 use std::time::Duration;
@@ -112,7 +111,7 @@ fn wait_for_port(port: u16) {
         }
         std::thread::sleep(Duration::from_millis(100));
     }
-    panic!("exporter não ficou pronto na porta {port}");
+    panic!("exporter não ficou pronto na porta {}", port);
 }
 
 // ---------------------------------------------------------------------------
@@ -183,6 +182,8 @@ fn test_metrics_happy_path() {
     // Grupos (tags) devem aparecer como labels
     assert!(body.contains("Production") || body.contains("Staging"),
         "faltaram labels de grupos de monitores");
+
+    child.wait().ok();
 }
 
 // ---------------------------------------------------------------------------
@@ -231,6 +232,8 @@ fn test_zoho_auth_failure_returns_empty_metrics() {
 
     // A API de monitores não deve ter sido chamada
     api_not_called.assert_hits(0);
+
+    child.wait().ok();
 }
 
 // ---------------------------------------------------------------------------
@@ -274,7 +277,7 @@ fn test_site24x7_api_server_error_does_not_crash_exporter() {
         "o exporter não deve ter terminado após erro 500 da API"
     );
 
-    child.kill().ok();
+    child.wait().ok();
 }
 
 // ---------------------------------------------------------------------------
@@ -316,7 +319,7 @@ fn test_malformed_json_does_not_crash_exporter() {
         "o exporter não deve ter terminado após JSON malformado"
     );
 
-    child.kill().ok();
+    child.wait().ok();
 }
 
 // ---------------------------------------------------------------------------
@@ -355,7 +358,7 @@ fn test_geolocation_endpoint_responds() {
     // O corpo deve conter pelo menos chaves de geolocalização conhecidas ou ser JSON válido
     assert!(!body.is_empty(), "/geolocation não deve retornar vazio");
 
-    child.kill().ok();
+    child.wait().ok();
 }
 
 // ---------------------------------------------------------------------------
@@ -393,7 +396,7 @@ fn test_bearer_token_is_sent_to_api() {
     reqwest::blocking::get(format!("http://127.0.0.1:{}/metrics", port))
         .unwrap();
 
-    child.kill().ok();
+    child.wait().ok();
 
     // Verifica que o mock recebeu a chamada com o header correto
     status_mock.assert();
@@ -433,7 +436,7 @@ fn test_monitor_trouble_status_is_exported() {
         .text()
         .unwrap();
 
-    child.kill().ok();
+    child.wait().ok();
 
     // "Browser Test" está com status=2 (TROUBLE), response_time=8500
     assert!(
@@ -474,5 +477,5 @@ fn test_unknown_path_returns_404() {
     let resp = reqwest::blocking::get(format!("http://127.0.0.1:{}/nao-existe", port)).unwrap();
     assert_eq!(resp.status(), 404);
 
-    child.kill().ok();
+    child.wait().ok();
 }

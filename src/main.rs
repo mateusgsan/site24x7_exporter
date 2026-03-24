@@ -72,6 +72,15 @@ async fn main() -> Result<()> {
         client_secret,
     };
 
+    // Permite override das URLs em testes (ignorado em produção)
+    let site24x7_client_info = site24x7_types::Site24x7ClientInfo {
+        zoho_endpoint: std::env::var("ZOHO_BASE_URL_OVERRIDE")
+            .unwrap_or(site24x7_client_info.zoho_endpoint),
+        site24x7_endpoint: std::env::var("SITE24X7_API_BASE_OVERRIDE")
+            .unwrap_or(site24x7_client_info.site24x7_endpoint),
+        ..site24x7_client_info
+    };
+
     // Figure out Zoho accounts endpoint.
     info!(
         "Using site24x7 endpoint: {}",
@@ -140,19 +149,3 @@ async fn main() -> Result<()> {
 
     server.await.context("Server error")
 }
-
-fn zoho_token_url(endpoint: &Site24x7Endpoint) -> String {
-    // Permite override via env var em testes
-    if let Ok(base) = std::env::var("ZOHO_BASE_URL_OVERRIDE") {
-        return format!("{}/oauth/v2/token", base.trim_end_matches('/'));
-    }
-    format!("https://accounts.zoho.{}/oauth/v2/token", endpoint.zoho_domain())
-}
-
-fn site24x7_api_base(endpoint: &Site24x7Endpoint) -> String {
-    if let Ok(base) = std::env::var("SITE24X7_API_BASE_OVERRIDE") {
-        return base.trim_end_matches('/').to_string();
-    }
-    format!("https://www.zohoapis.{}/site24x7/v2", endpoint.zoho_domain())
-}
-
