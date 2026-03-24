@@ -4,7 +4,7 @@
 //!   cargo test -- --test-threads 1 --nocapture
 
 use assert_cmd::prelude::*;
-use httpmock::prelude::*;
+use mockito::{Matcher, Method::*, Server, ServerGuard};
 use serial_test::serial;
 use std::process::Command;
 use std::time::Duration;
@@ -83,18 +83,17 @@ fn monitor_groups_response() -> serde_json::Value {
 // ---------------------------------------------------------------------------
 
 fn spawn_exporter_with_mocks(
-    zoho_server: &MockServer,
-    api_server: &MockServer,
+    zoho_server: &ServerGuard,
+    api_server: &ServerGuard,
     listen_port: u16,
 ) -> std::process::Child {
     Command::cargo_bin("site24x7_exporter")
         .unwrap()
-        .env("ZOHO_CLIENT_ID",       "test-client-id")
-        .env("ZOHO_CLIENT_SECRET",   "test-client-secret")
-        .env("ZOHO_REFRESH_TOKEN",   "test-refresh-token")
-        // Redireciona chamadas HTTP para os servidores mock
-        .env("ZOHO_BASE_URL_OVERRIDE",     format!("http://127.0.0.1:{}", zoho_server.port()))
-        .env("SITE24X7_API_BASE_OVERRIDE", format!("http://127.0.0.1:{}", api_server.port()))
+        .env("ZOHO_CLIENT_ID",             "test-client-id")
+        .env("ZOHO_CLIENT_SECRET",         "test-client-secret")
+        .env("ZOHO_REFRESH_TOKEN",         "test-refresh-token")
+        .env("ZOHO_BASE_URL_OVERRIDE",     zoho_server.url())
+        .env("SITE24X7_API_BASE_OVERRIDE", api_server.url())
         .arg(format!("--web.listen-address=127.0.0.1:{}", listen_port))
         .spawn()
         .expect("falha ao iniciar o binário")
@@ -122,25 +121,24 @@ fn wait_for_port(port: u16) {
 #[serial]
 fn test_metrics_happy_path() {
     // Sobe dois servidores mock locais
-    let zoho_server = MockServer::start();
-    let api_server  = MockServer::start();
+    let mut zoho_server = Server::new();
+    let mut api_server  = Server::new();
 
     // Mock: Zoho token endpoint
-    let _token_mock = zoho_server.mock(|when, then| {
-        when.method(POST).path("/oauth/v2/token");
-        then.status(200)
-            .header("Content-Type", "application/json")
-            .json_body(zoho_token_response());
-    });
+    let _token_mock = zoho_server.mock("POST", "/oauth/v2/token")
+        .with_status(200)
+        .with_header("Content-Type", "application/json")
+        .with_body(zoho_token_response().to_string())
+        .create();
 
     // Mock: lista de monitores
     let _status_mock = api_server.mock(|when, then| {
         when.method(GET)
             .path("/monitors/status")
-            .header_exists("Authorization");      // deve enviar o Bearer token
+            .header("Authorization", Matcher::Any);      // deve enviar o Bearer token
         then.status(200)
             .header("Content-Type", "application/json")
-            .json_body(monitors_status_response());
+            .body(monitors_status_response().to_string());
     });
 
     // Mock: grupos de monitores
@@ -148,7 +146,7 @@ fn test_metrics_happy_path() {
         when.method(GET).path("/monitor_groups");
         then.status(200)
             .header("Content-Type", "application/json")
-            .json_body(monitor_groups_response());
+            .body(monitor_groups_response().to_string());
     });
 
     let port = free_port();
@@ -193,18 +191,18 @@ fn test_metrics_happy_path() {
 #[test]
 #[serial]
 fn test_zoho_auth_failure_returns_empty_metrics() {
-    let zoho_server = MockServer::start();
-    let api_server  = MockServer::start();
+    let mut zoho_server = Server::new();
+    let mut api_server  = Server::new();
 
     // Token endpoint retorna 401
     let _token_mock = zoho_server.mock(|when, then| {
         when.method(POST).path("/oauth/v2/token");
         then.status(401)
             .header("Content-Type", "application/json")
-            .json_body(serde_json::json!({
+            .body(serde_json::json!({
                 "error": "invalid_client",
                 "error_description": "Client ID does not exist"
-            }));
+            }).to_string());
     });
 
     // API não deve ser chamada neste cenário
@@ -243,13 +241,12 @@ fn test_zoho_auth_failure_returns_empty_metrics() {
 #[test]
 #[serial]
 fn test_site24x7_api_server_error_does_not_crash_exporter() {
-    let zoho_server = MockServer::start();
-    let api_server  = MockServer::start();
+    let mut zoho_server = Server::new();
+    let mut api_server  = Server::new();
 
     let _token_mock = zoho_server.mock(|when, then| {
         when.method(POST).path("/oauth/v2/token");
-        then.status(200)
-            .json_body(zoho_token_response());
+        then.status(200).body(zoho_token_response().to_string());
     });
 
     // Monitores retornam 500
@@ -260,7 +257,7 @@ fn test_site24x7_api_server_error_does_not_crash_exporter() {
 
     let _groups_mock = api_server.mock(|when, then| {
         when.method(GET).path("/monitor_groups");
-        then.status(200).json_body(monitor_groups_response());
+        then.status(200).body(monitor_groups_response().to_string());
     });
 
     let port = free_port();
@@ -287,12 +284,12 @@ fn test_site24x7_api_server_error_does_not_crash_exporter() {
 #[test]
 #[serial]
 fn test_malformed_json_does_not_crash_exporter() {
-    let zoho_server = MockServer::start();
-    let api_server  = MockServer::start();
+    let mut zoho_server = Server::new();
+    let mut api_server  = Server::new();
 
     let _token_mock = zoho_server.mock(|when, then| {
         when.method(POST).path("/oauth/v2/token");
-        then.status(200).json_body(zoho_token_response());
+        then.status(200).body(zoho_token_response().to_string());
     });
 
     let _status_mock = api_server.mock(|when, then| {
@@ -304,7 +301,7 @@ fn test_malformed_json_does_not_crash_exporter() {
 
     let _groups_mock = api_server.mock(|when, then| {
         when.method(GET).path("/monitor_groups");
-        then.status(200).json_body(monitor_groups_response());
+        then.status(200).body(monitor_groups_response().to_string());
     });
 
     let port = free_port();
@@ -329,22 +326,22 @@ fn test_malformed_json_does_not_crash_exporter() {
 #[test]
 #[serial]
 fn test_geolocation_endpoint_responds() {
-    let zoho_server = MockServer::start();
-    let api_server  = MockServer::start();
+    let mut zoho_server = Server::new();
+    let mut api_server  = Server::new();
 
     let _token_mock = zoho_server.mock(|when, then| {
         when.method(POST).path("/oauth/v2/token");
-        then.status(200).json_body(zoho_token_response());
+        then.status(200).body(zoho_token_response().to_string());
     });
 
     let _status_mock = api_server.mock(|when, then| {
         when.method(GET).path("/monitors/status");
-        then.status(200).json_body(monitors_status_response());
+        then.status(200).body(monitors_status_response().to_string());
     });
 
     let _groups_mock = api_server.mock(|when, then| {
         when.method(GET).path("/monitor_groups");
-        then.status(200).json_body(monitor_groups_response());
+        then.status(200).body(monitor_groups_response().to_string());
     });
 
     let port = free_port();
@@ -368,12 +365,12 @@ fn test_geolocation_endpoint_responds() {
 #[test]
 #[serial]
 fn test_bearer_token_is_sent_to_api() {
-    let zoho_server = MockServer::start();
-    let api_server  = MockServer::start();
+    let mut zoho_server = Server::new();
+    let mut api_server  = Server::new();
 
     let _token_mock = zoho_server.mock(|when, then| {
         when.method(POST).path("/oauth/v2/token");
-        then.status(200).json_body(zoho_token_response());
+        then.status(200).body(zoho_token_response().to_string());
     });
 
     // Exige header Authorization com o token específico
@@ -381,12 +378,12 @@ fn test_bearer_token_is_sent_to_api() {
         when.method(GET)
             .path("/monitors/status")
             .header("Authorization", "Zoho-oauthtoken fake-access-token-abc123");
-        then.status(200).json_body(monitors_status_response());
+        then.status(200).body(monitors_status_response().to_string());
     });
 
     let _groups_mock = api_server.mock(|when, then| {
         when.method(GET).path("/monitor_groups");
-        then.status(200).json_body(monitor_groups_response());
+        then.status(200).body(monitor_groups_response().to_string());
     });
 
     let port = free_port();
@@ -409,22 +406,22 @@ fn test_bearer_token_is_sent_to_api() {
 #[test]
 #[serial]
 fn test_monitor_trouble_status_is_exported() {
-    let zoho_server = MockServer::start();
-    let api_server  = MockServer::start();
+    let mut zoho_server = Server::new();
+    let mut api_server  = Server::new();
 
     let _token_mock = zoho_server.mock(|when, then| {
         when.method(POST).path("/oauth/v2/token");
-        then.status(200).json_body(zoho_token_response());
+        then.status(200).body(zoho_token_response().to_string());
     });
 
     let _status_mock = api_server.mock(|when, then| {
         when.method(GET).path("/monitors/status");
-        then.status(200).json_body(monitors_status_response());
+        then.status(200).body(monitors_status_response().to_string());
     });
 
     let _groups_mock = api_server.mock(|when, then| {
         when.method(GET).path("/monitor_groups");
-        then.status(200).json_body(monitor_groups_response());
+        then.status(200).body(monitor_groups_response().to_string());
     });
 
     let port = free_port();
@@ -452,22 +449,22 @@ fn test_monitor_trouble_status_is_exported() {
 #[test]
 #[serial]
 fn test_unknown_path_returns_404() {
-    let zoho_server = MockServer::start();
-    let api_server  = MockServer::start();
+    let mut zoho_server = Server::new();
+    let mut api_server  = Server::new();
 
     let _token_mock = zoho_server.mock(|when, then| {
         when.method(POST).path("/oauth/v2/token");
-        then.status(200).json_body(zoho_token_response());
+        then.status(200).body(zoho_token_response().to_string());
     });
 
     let _status_mock = api_server.mock(|when, then| {
         when.method(GET).path("/monitors/status");
-        then.status(200).json_body(monitors_status_response());
+        then.status(200).body(monitors_status_response().to_string());
     });
 
     let _groups_mock = api_server.mock(|when, then| {
         when.method(GET).path("/monitor_groups");
-        then.status(200).json_body(monitor_groups_response());
+        then.status(200).body(monitor_groups_response().to_string());
     });
 
     let port = free_port();
