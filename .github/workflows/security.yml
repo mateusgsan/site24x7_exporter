@@ -9,29 +9,58 @@ on:
     - cron: '0 0 * * 0' # Run weekly on Sunday
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # Job 1: SAST — Static analysis, vulnerability and license checks
+  # ---------------------------------------------------------------------------
   security-audit:
     name: Security Audit (SAST)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-          
+
       - name: Run Cargo Clippy (SAST)
         run: cargo clippy --all-targets --all-features -- -D warnings
-        
+
       - name: Install cargo-audit
         uses: taiki-e/install-action@cargo-audit
-        
+
       - name: Run Cargo Audit (Vulnerability Check)
         run: cargo audit
-        
+
       - name: Install cargo-deny
         uses: taiki-e/install-action@cargo-deny
-        
+
       - name: Run Cargo Deny (License & Advisory Check)
         run: cargo deny check advisories bans licenses sources
 
+  # ---------------------------------------------------------------------------
+  # Job 2: SBOM — Software Bill of Materials (CycloneDX format)
+  # Uses cargo-cyclonedx which is officially supported by taiki-e/install-action.
+  # cargo-sbom is NOT supported by taiki-e/install-action.
+  # ---------------------------------------------------------------------------
+  generate-sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-cyclonedx
+        uses: taiki-e/install-action@cargo-cyclonedx
+
+      - name: Generate SBOM (CycloneDX JSON)
+        run: cargo cyclonedx --format json --all
+
+      - name: Upload SBOM as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: "**/*.cdx.json"
+          retention-days: 90
