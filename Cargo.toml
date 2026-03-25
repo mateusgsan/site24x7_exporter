@@ -1,11 +1,11 @@
 [package]
 name = "site24x7_exporter"
 version = "1.2"
-authors = ["Sven-Hendrik Haase <svenstaro@gmail.com>"]
+authors = ["Mateus G. Santos <mateusgsan@gmail.com>"]
 description = "A Prometheus compatible exporter for site24x7"
-edition = "2018"
+edition = "2026"
 license = "MIT"
-repository = "https://github.com/svenstaro/site24x7_exporter"
+repository = "https://github.com/mateusgsan/site24x7_exporter"
 publish = false
 
 [profile.release]
