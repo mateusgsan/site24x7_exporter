@@ -8,6 +8,10 @@
 
 A Prometheus compatible exporter for [site24x7.com](https://www.site24x7.com/)
 
+> **Fork** of [svenstaro/site24x7_exporter](https://github.com/svenstaro/site24x7_exporter) by [Sven-Thorsten Saaler](https://github.com/svenstaro).
+> This fork adds a security pipeline (SAST + SBOM), dependency updates and additional test coverage.
+> All original work and credit belong to the upstream author.
+
 ## Features
 
 This exporter currently supports these monitor types:
